@@ -1,3 +1,5 @@
+GPU = 1
+
 
 CC   := gcc
 CXX  := g++
@@ -31,7 +33,8 @@ MODULES := \
 	src/proof/pdr src/proof/abs src/proof/live src/proof/ssc src/proof/int \
 	src/proof/cec src/proof/acec src/proof/dch src/proof/fraig src/proof/fra src/proof/ssw \
 	src/aig/aig src/aig/saig src/aig/gia src/aig/ioa src/aig/ivy src/aig/hop \
-	src/aig/miniaig
+	src/aig/miniaig \
+	src/bfhe
 
 all: $(PROG)
 default: $(PROG)
@@ -41,7 +44,7 @@ ARCHFLAGS_EXE ?= ./arch_flags
 $(ARCHFLAGS_EXE) : arch_flags.c
 	$(CC) arch_flags.c -o $(ARCHFLAGS_EXE)
 
-INCLUDES += -I$(ABCSRC)/src
+INCLUDES += -I$(ABCSRC)/src -I$(ABCSRC)/include
 
 # Use C99 stdint.h header for platform-dependent types
 ifdef ABC_USE_STDINT_H
@@ -52,7 +55,7 @@ endif
 
 ARCHFLAGS := $(ARCHFLAGS)
 
-OPTFLAGS  ?= -g -O
+OPTFLAGS  ?= #-g -O0
 
 CFLAGS    += -Wall -Wno-unused-function -Wno-write-strings -Wno-sign-compare $(ARCHFLAGS)
 ifneq ($(findstring arm,$(shell uname -m)),)
@@ -135,6 +138,12 @@ endif
 
 # LIBS := -ldl -lrt
 LIBS += -lm
+
+ifeq ($(GPU), 1)
+	LIBS += -lcufhe_cpu.so
+else
+	LIBS += -lcufhe_gpu.so
+endif
 ifneq ($(OS), FreeBSD)
   LIBS += -ldl
 endif
