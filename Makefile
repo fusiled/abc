@@ -1,5 +1,7 @@
-GPU = 1
+GPU = 0
+CUDAGRAPH = 0
 
+CUDAHOME=/opt/cuda
 
 CC   := gcc
 CXX  := g++
@@ -44,7 +46,7 @@ ARCHFLAGS_EXE ?= ./arch_flags
 $(ARCHFLAGS_EXE) : arch_flags.c
 	$(CC) arch_flags.c -o $(ARCHFLAGS_EXE)
 
-INCLUDES += -I$(ABCSRC)/src -I$(ABCSRC)/include
+INCLUDES += -I$(ABCSRC)/src -I$(ABCSRC)/include -I$(CUDAHOME)/include
 
 # Use C99 stdint.h header for platform-dependent types
 ifdef ABC_USE_STDINT_H
@@ -55,7 +57,7 @@ endif
 
 ARCHFLAGS := $(ARCHFLAGS)
 
-OPTFLAGS  ?= #-g -O0
+OPTFLAGS  ?= -g -O0
 
 CFLAGS    += -Wall -Wno-unused-function -Wno-write-strings -Wno-sign-compare $(ARCHFLAGS)
 ifneq ($(findstring arm,$(shell uname -m)),)
@@ -85,7 +87,7 @@ ifndef ABC_USE_NO_READLINE
   LIBS += $(ABC_READLINE_LIBRARIES)
   ifeq ($(OS), FreeBSD)
     CFLAGS += -I/usr/local/include
-    LDFLAGS += -L/usr/local/lib
+    LDFLAGS += -L/usr/local/lib 
   endif
   $(info $(MSG_PREFIX)Using libreadline)
 endif
@@ -138,14 +140,21 @@ endif
 
 # LIBS := -ldl -lrt
 LIBS += -lm
+LIBS += -L/home/fusiled/Desktop/fusiled_place/bfhe/cuFHE/cufhe/bin
 
 ifeq ($(GPU), 1)
-	LIBS += -lcufhe_cpu.so
+	CFLAGS += -DGPU
+	LIBS += -lcufhe_gpu
 else
-	LIBS += -lcufhe_gpu.so
+	LIBS += -ltfhe-fftw
 endif
 ifneq ($(OS), FreeBSD)
   LIBS += -ldl
+endif
+
+ifeq ($(CUDAGRAPH), 1)
+	CFLAGS += -DGPU
+	LIBS += -L$(CUDAHOME)/lib64 -lcudart
 endif
 
 ifneq ($(findstring Darwin, $(shell uname)), Darwin)
