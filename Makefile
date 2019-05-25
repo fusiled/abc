@@ -1,5 +1,3 @@
-GPU = 0
-
 CC   := gcc
 CXX  := g++
 LD   := $(CXX)
@@ -43,7 +41,7 @@ ARCHFLAGS_EXE ?= ./arch_flags
 $(ARCHFLAGS_EXE) : arch_flags.c
 	$(CC) arch_flags.c -o $(ARCHFLAGS_EXE)
 
-INCLUDES += -I$(ABCSRC)/src -I$(ABCSRC)/include 
+INCLUDES += -I$(ABCSRC)/src -I$(ABCSRC)/include -I$(GAHELHOME)/include 
 
 # Use C99 stdint.h header for platform-dependent types
 ifdef ABC_USE_STDINT_H
@@ -140,14 +138,9 @@ endif
 
 # LIBS := -ldl -lrt
 LIBS += -lm
-LIBS += -L/home/fusiled/Desktop/fusiled_place/bfhe/cuFHE/cufhe/bin
+LIBS += -L$(GAHELHOME)/lib
 
-ifeq ($(GPU), 1)
-	CFLAGS += -DGPU
-	LIBS += -lcufhe_gpu
-else
-	LIBS += -ltfhe-fftw
-endif
+LIBS += -ltfhe-fftw
 ifneq ($(OS), FreeBSD)
   LIBS += -ldl
 endif
