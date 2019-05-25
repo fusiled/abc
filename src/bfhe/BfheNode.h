@@ -5,12 +5,14 @@
 
 #ifdef __cplusplus
 
-#include <driver_types.h>
 
 #include <string>
 #include <memory>
 #include <vector>
 #include <ostream>
+
+
+#include <taskflow/taskflow.hpp>
 
 struct LweSample;
 struct TFheGateBootstrappingCloudKeySet;
@@ -48,7 +50,6 @@ struct BfheNode{
     std::vector<BfheNode *> inputs;
     op_enum op;
     tree_enum tree_type;
-    cudaGraphNode_t graphNode;
 
     BfheNode(std::string, LweSample *, std::vector<BfheNode*>, op_enum, tree_enum _tree_type); //Generic constructor
     BfheNode(std::string, LweSample *); //Input constructor
@@ -57,9 +58,7 @@ struct BfheNode{
     BfheNode(std::string, BfheNode *, BfheNode *, op_enum); //Binary input constructor
     ~BfheNode();
     LweSample* eval(const TFheGateBootstrappingCloudKeySet*);
-#ifdef CUDAGRAPH 
-    cudaGraphNode_t buildGraph(cudaGraph_t, const TFheGateBootstrappingCloudKeySet*);
-#endif
+    tf::Task buildGraph(tf::Taskflow &, const TFheGateBootstrappingCloudKeySet*);
 };
     
     std::ostream& operator<<(std::ostream &strm, const BfheNode &a);
@@ -79,10 +78,6 @@ extern "C" {
     typedef struct BfheNode BfheNode;
 
 #endif //__cplusplus
-
-#ifdef CUDAGRAPH
-    void BfheNode_graph_eval(void * args);
-#endif
 
     bfhe_code BfheNode_getName(BfheNode * node, const char ** name);
 #ifdef __cplusplus

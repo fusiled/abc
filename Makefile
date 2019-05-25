@@ -1,7 +1,4 @@
 GPU = 0
-CUDAGRAPH = 0
-
-CUDAHOME=/opt/cuda
 
 CC   := gcc
 CXX  := g++
@@ -46,7 +43,7 @@ ARCHFLAGS_EXE ?= ./arch_flags
 $(ARCHFLAGS_EXE) : arch_flags.c
 	$(CC) arch_flags.c -o $(ARCHFLAGS_EXE)
 
-INCLUDES += -I$(ABCSRC)/src -I$(ABCSRC)/include -I$(CUDAHOME)/include
+INCLUDES += -I$(ABCSRC)/src -I$(ABCSRC)/include 
 
 # Use C99 stdint.h header for platform-dependent types
 ifdef ABC_USE_STDINT_H
@@ -57,7 +54,8 @@ endif
 
 ARCHFLAGS := $(ARCHFLAGS)
 
-OPTFLAGS  ?= -g -O0
+#OPTFLAGS  ?= -g -O0
+OPTFLAGS  ?= -O2
 
 CFLAGS    += -Wall -Wno-unused-function -Wno-write-strings -Wno-sign-compare $(ARCHFLAGS)
 ifneq ($(findstring arm,$(shell uname -m)),)
@@ -80,6 +78,8 @@ endif
 
 ABC_READLINE_INCLUDES ?=
 ABC_READLINE_LIBRARIES ?= -lreadline
+
+LDFLAGS= -lpthread
 
 # whether to use libreadline
 ifndef ABC_USE_NO_READLINE
@@ -152,11 +152,6 @@ ifneq ($(OS), FreeBSD)
   LIBS += -ldl
 endif
 
-ifeq ($(CUDAGRAPH), 1)
-	CFLAGS += -DGPU
-	LIBS += -L$(CUDAHOME)/lib64 -lcudart
-endif
-
 ifneq ($(findstring Darwin, $(shell uname)), Darwin)
    LIBS += -lrt
 endif
@@ -167,7 +162,7 @@ ifdef ABC_USE_LIBSTDCXX
 endif
 
 $(info $(MSG_PREFIX)Using CFLAGS=$(CFLAGS))
-CXXFLAGS += $(CFLAGS)
+CXXFLAGS += $(CFLAGS) -std=c++1z
 
 SRC  :=
 GARBAGE := core core.* *.stackdump ./tags $(PROG) arch_flags

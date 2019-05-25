@@ -2,8 +2,6 @@
 #define __BFHE_NET_HH__
 
 
-#include <driver_types.h>
-
 #include "BfheCommon.h"
 #include "BfheNode.h"
 

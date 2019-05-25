@@ -2,9 +2,6 @@
 
 #include "tfhe/tfhe.h"
 
-#include <driver_types.h>
-#include <cuda_runtime_api.h>
-
 #include <cassert>
 #include <memory>
 #include <string>
@@ -105,24 +102,16 @@ BfheNode::BfheNode(std::string _name, BfheNode * node1, BfheNode * node2, op_enu
    }
 }
 
-#ifdef CUDAGRAPH 
 
-cudaGraphNode_t BfheNode::buildGraph(cudaGraph_t graph, const TFheGateBootstrappingCloudKeySet* bk){
-        std::vector<cudaGraphNode_t> deps;
-        for( auto input : inputs){
-            deps.push_back(input->buildGraph(graph,bk)) ;
-    }
-    cudaHostNodeParams hostParams = {0};
-    hostParams.fn = BfheNode_graph_eval;
-    BfheGraphNodeParams * nodeParams = new BfheGraphNodeParams(this,bk);
-    hostParams.userData = nodeParams;
+//Tasktipe.precede(anotherTask)
 
-    if(cudaGraphAddHostNode(&graphNode, graph, deps.data(), deps.size(), &hostParams)!=cudaSuccess){
-        std::cerr<<"Cannot add cudaGraphNode for "<<name<<" to computation graph"<<std::endl;
+tf::Task BfheNode::buildGraph(tf::Taskflow & tf, const TFheGateBootstrappingCloudKeySet* bk){
+    tf::Task thisTask = tf.emplace([this,bk]{ this->eval(bk); }); //create the task in some way
+    for( auto input : inputs){
+        input->buildGraph(tf,bk).precede(thisTask) ;
     }
-    return graphNode;
+    return thisTask;
 }
-#endif
 
 LweSample *
 BfheNode::eval(const TFheGateBootstrappingCloudKeySet* bk){
@@ -156,16 +145,5 @@ bfhe_code BfheNode_getName(BfheNode * node, const char ** name){
     *name=nodeName;
     return OK;
 }
-
-#ifdef CUDAGRAPH
-
-void BfheNode_graph_eval(void * args){
-    BfheGraphNodeParams * params =(BfheGraphNodeParams *) args;
-    BfheNode * node = params->node;
-    const TFheGateBootstrappingCloudKeySet* bk = params->bk;
-    node->eval(bk);
-}
-
-#endif
 
 } //End extern "C"

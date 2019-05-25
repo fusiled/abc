@@ -1,9 +1,6 @@
 #include "BfheNet.h"
 #include "BfheNode.h"
 
-#include <driver_types.h>
-#include <cuda_runtime_api.h>
-
 #include <cassert>
 
 
@@ -14,6 +11,8 @@
 #include <string>
 #include <utility>
 #include <iostream>
+
+#include <taskflow/taskflow.hpp>
 
 BfheNet::BfheNet(std::string _name):
     name(_name), cloudKey(nullptr){
@@ -127,39 +126,27 @@ bfhe_code BfheNet::addInputToNode(std::string nodeName, std::string inputName){
 }
 
 bfhe_code BfheNet::graphEval(){
-#ifdef CUDAGRAPH
-    cudaStream_t streamForGraph;
-    cudaStreamCreate(&streamForGraph);
 
-    cudaGraph_t graph;
 
-    cudaError_t error = cudaGraphCreate(&graph, 0);
-    if(error!=cudaSuccess){
-            std::cerr<<"Cannot create cudaGraph for BfheNode, reason: "<< cudaGetErrorString(error)<<std::endl;
-    }
+    tf::Taskflow tf;
 
     std::chrono::high_resolution_clock::time_point t_start = std::chrono::high_resolution_clock::now();
-     //Build cudaGraph. This step could be done while we're building the tree. It should be better
+    //Build TaskFlow Graph. This step could be done while we're building the tree. It should be better
     for(auto outputIter = outputs.begin(); outputIter != outputs.end(); ++outputIter ){
-        (*outputIter)->buildGraph(graph,cloudKey);
+        //TODO!!! FIX HERE
+        (*outputIter)->buildGraph(tf,cloudKey);
     }
     std::chrono::high_resolution_clock::time_point t_end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>( t_end - t_start ).count();
     std::cout << "Dependency graph built in "<< name <<": "<<duration/1000.0<<" secs"<< std::endl;
-    cudaGraphExec_t graphExec;
     t_start = std::chrono::high_resolution_clock::now();
-    cudaGraphInstantiate(&graphExec, graph, NULL, NULL, 0);
-    cudaGraphLaunch(graphExec, streamForGraph);
-    cudaStreamSynchronize(streamForGraph);
+    
+    tf::Executor().run(tf);
+
     t_end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>( t_end - t_start ).count();
     std::cout << "graph computed in "<< name <<": "<<duration/1000.0<<" secs"<< std::endl;
     return OK;
-#else
-
-    std::cout << "cudaGraph feature disabled! "<< std::endl;
-    return ERROR;
-#endif
 }
 
 bfhe_code BfheNet::eval(){
