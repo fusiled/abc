@@ -512,7 +512,7 @@ int Bfhe_NtkWriteNodeGate( BfheNet * net, Abc_Obj_t * pNode, int Length )
     int i;
     char * gateType = Mio_GateReadName(pGate);
     const char * gateName =Abc_ObjName( Abc_ObjFanout0(pNode) ); //The name of the gate is the name of the output
-    printf("Writing gate of type %s and name %s!\n",gateType,gateName);
+    //printf("Writing gate of type %s and name %s!\n",gateType,gateName);
     BfheNode * gateNode;
     BfheNet_newNode(net,gateType,gateName,&gateNode);
     //The name may be changed, update it

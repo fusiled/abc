@@ -14,6 +14,7 @@
 
 #include <taskflow/taskflow.hpp>
 
+class BfheNet;
 struct LweSample;
 struct TFheGateBootstrappingCloudKeySet;
 //Negate with bootsNOT
@@ -57,8 +58,9 @@ struct BfheNode{
     BfheNode(std::string, BfheNode *, op_enum, tree_enum _tree_type ); //Single Input constructor
     BfheNode(std::string, BfheNode *, BfheNode *, op_enum); //Binary input constructor
     ~BfheNode();
-    LweSample* eval(const TFheGateBootstrappingCloudKeySet*);
-    tf::Task buildGraph(tf::Taskflow &, const TFheGateBootstrappingCloudKeySet*);
+    void clean();
+    LweSample* eval(const TFheGateBootstrappingCloudKeySet*,BfheNet *);
+    tf::Task buildGraph(tf::Taskflow &, const TFheGateBootstrappingCloudKeySet*, BfheNet *);
 };
     
     std::ostream& operator<<(std::ostream &strm, const BfheNode &a);

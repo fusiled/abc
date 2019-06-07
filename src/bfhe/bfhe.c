@@ -160,7 +160,7 @@ int BfheCommandEvalNet( Abc_Frame_t * pAbc, int argc, char **argv )
     }
 
     //Eval the net 
-    printf("Entering the eval\n"); 
+    printf("Entering the eval with graph mode: %d\n",graphMode); 
     Bfhe_EvalNet(THE_NET,graphMode);
     return 0;
 usage:

@@ -1,6 +1,8 @@
 #include "BfheNode.h"
+#include "BfheNet.h"
 
 #include "tfhe/tfhe.h"
+
 
 #include <cassert>
 #include <memory>
@@ -24,7 +26,7 @@ void (*op_bin_function_map[])(LweSample *, const LweSample *, const LweSample *,
 };
 
 
-LweSample * computeResult(op_enum op, std::vector<BfheNode*> inputs, const TFheGateBootstrappingCloudKeySet* bk){
+LweSample * computeResult(op_enum op, std::vector<BfheNode*> inputs, const TFheGateBootstrappingCloudKeySet* bk, BfheNet * net){
     //assert(op!=NOP);
     LweSample * result = new_gate_bootstrapping_ciphertext(bk->params);
     //Handle the NOT operation first
@@ -41,18 +43,18 @@ LweSample * computeResult(op_enum op, std::vector<BfheNode*> inputs, const TFheG
         }
         case NOT: {
             assert(inputs.size()==1);
-            bootsNOT(result,inputs[0]->eval(bk), bk);
+            bootsNOT(result,inputs[0]->eval(bk, net), bk);
             break;
         }
         case NOP: {
-            result = inputs[0]->eval(bk);
+            result = inputs[0]->eval(bk,net);
         }
             break;
         default: 
             //Hanldle binary operations now
             assert(inputs.size()==2);
             auto op_function = op_bin_function_map[op];
-            op_function(result, inputs[0]->eval(bk),inputs[1]->eval(bk),bk);
+            op_function(result, inputs[0]->eval(bk,net),inputs[1]->eval(bk,net),bk);
     }
     return result;
 }
@@ -105,16 +107,16 @@ BfheNode::BfheNode(std::string _name, BfheNode * node1, BfheNode * node2, op_enu
 
 //Tasktipe.precede(anotherTask)
 
-tf::Task BfheNode::buildGraph(tf::Taskflow & tf, const TFheGateBootstrappingCloudKeySet* bk){
-    tf::Task thisTask = tf.emplace([this,bk]{ this->eval(bk); }); //create the task in some way
+tf::Task BfheNode::buildGraph(tf::Taskflow & tf, const TFheGateBootstrappingCloudKeySet* bk, BfheNet * net){
+    tf::Task thisTask = tf.emplace([this,bk,net]{ this->eval(bk, net); }); //create the task in some way
     for( auto input : inputs){
-        input->buildGraph(tf,bk).precede(thisTask) ;
+        input->buildGraph(tf,bk, net).precede(thisTask) ;
     }
     return thisTask;
 }
 
 LweSample *
-BfheNode::eval(const TFheGateBootstrappingCloudKeySet* bk){
+BfheNode::eval(const TFheGateBootstrappingCloudKeySet* bk, BfheNet * net){
     //std::cout << "Start Evaluation of "<<name<<std::endl;;
     if(tree_type == INPUT){
         assert(result!=nullptr);
@@ -122,17 +124,23 @@ BfheNode::eval(const TFheGateBootstrappingCloudKeySet* bk){
     }
     if(result == nullptr){
         //std::cout << "calling Evaluation of "<<name<<std::endl;;
-        result = computeResult(op,inputs,bk);
+        result = computeResult(op,inputs,bk,net);
     }
     //std::cout << "End Evaluation of "<<name<<std::endl;;
+    net->notifyPerformed(this);
     return result;
 }
 
 BfheNode::~BfheNode(){
+	clean();
+}
+
+void BfheNode::clean(){
    if(result != nullptr || op!=NOP){
         delete_gate_bootstrapping_ciphertext(result); 
    }
 }
+
 
 std::ostream& operator<<(std::ostream &strm, const BfheNode &a) {
   return strm << "Node( name:" << a.name <<", op:" << a.op<<" )";

@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 #include <iostream>
+#include <mutex>
 
 #include <taskflow/taskflow.hpp>
 
@@ -127,21 +128,26 @@ bfhe_code BfheNet::addInputToNode(std::string nodeName, std::string inputName){
 
 bfhe_code BfheNet::graphEval(){
 
+    std::cout<<"Evaluating net in parallel"<<std::endl;
 
     tf::Taskflow tf;
 
+    std::cout << "Building Dependency Graph... "<<std::endl;
     std::chrono::high_resolution_clock::time_point t_start = std::chrono::high_resolution_clock::now();
     //Build TaskFlow Graph. This step could be done while we're building the tree. It should be better
     for(auto outputIter = outputs.begin(); outputIter != outputs.end(); ++outputIter ){
         //TODO!!! FIX HERE
-        (*outputIter)->buildGraph(tf,cloudKey);
+        (*outputIter)->buildGraph(tf,cloudKey,this);
     }
     std::chrono::high_resolution_clock::time_point t_end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>( t_end - t_start ).count();
-    std::cout << "Dependency graph built in "<< name <<": "<<duration/1000.0<<" secs"<< std::endl;
+    std::cout << "Dependency Graph  built in "<< name <<": "<<duration/1000.0<<" secs"<< std::endl;
+    nChildrenRuntime = std::map<std::string,unsigned int>(nChildren);
     t_start = std::chrono::high_resolution_clock::now();
     
-    tf::Executor().run(tf);
+    std::cout << "Number of availabel threads is" << std::thread::hardware_concurrency() << std::endl;
+    std::cout << "Limiting to 2" << std::endl;
+    tf::Executor(2).run(tf);
 
     t_end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>( t_end - t_start ).count();
@@ -154,17 +160,18 @@ bfhe_code BfheNet::eval(){
         printf("Error! cloudKey not set in the Net! Aborting eval...\n");
         return ERROR;
     }
+    std::cout<<"Evaluating net sequentially"<<std::endl;
+    nChildrenRuntime = std::map<std::string,unsigned int>(nChildren);
     //Compute the result
     std::chrono::high_resolution_clock::time_point t_start = std::chrono::high_resolution_clock::now();
     for(auto outputIter = outputs.begin(); outputIter != outputs.end(); ++outputIter ){
-        (*outputIter)->eval(cloudKey);
+        (*outputIter)->eval(cloudKey,this);
     }
     std::chrono::high_resolution_clock::time_point t_end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>( t_end - t_start ).count();
     std::cout << "Evaluation on net"<< name <<": "<<duration/1000.0<<" secs"<< std::endl;
     return OK;
 }
-
 
 
 bfhe_code BfheNet::loadInput( FILE * fp){
@@ -205,6 +212,22 @@ bfhe_code BfheNet::setCloudKey(TFheGateBootstrappingCloudKeySet* _cloudKey  ){
 int BfheNet::size(){
     return nodeMap.size(); 
 }
+
+void BfheNet::notifyPerformed(BfheNode * node){
+	//Reduce of 1 all the children of node
+	//if nChildrenRuntime of a child is zero, then we can free it
+	//This reduces the memory demand of the system
+	for( auto child: node->inputs){
+		nChildrenMutex.lock();
+		nChildrenRuntime[child->name]--;
+		if(nChildrenRuntime[child->name]==0){
+			child->clean();
+		}
+		nChildrenMutex.unlock();
+	}
+}
+
+
 // C wrappers
 
 bfhe_code BfheNet_setName(BfheNet * net, char * netName){
