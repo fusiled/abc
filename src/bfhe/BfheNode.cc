@@ -11,6 +11,8 @@
 #include <iostream>
 
 
+#include <omp.h>
+
     //Array of function pointers with the same interface
 void (*op_bin_function_map[])(LweSample *, const LweSample *, const LweSample *,const TFheGateBootstrappingCloudKeySet*) = {
     bootsNAND,
@@ -54,14 +56,29 @@ LweSample * computeResult(op_enum op, std::vector<BfheNode*> inputs, const TFheG
             //Hanldle binary operations now
             assert(inputs.size()==2);
             auto op_function = op_bin_function_map[op];
-            op_function(result, inputs[0]->eval(bk,net),inputs[1]->eval(bk,net),bk);
+	    LweSample *res0 = NULL, *res1 =NULL;
+	    #pragma omp parallel sections
+	    {
+		#pragma omp section
+		{
+		    res0 =inputs[0]->eval(bk,net);
+		}
+		#pragma omp section
+		{
+		    res1 =inputs[1]->eval(bk,net);
+		}
+	    }
+	    assert(res0!=NULL);
+	    assert(res1!=NULL);
+            op_function(result, res0,res1, bk);
     }
     return result;
 }
 
 
 BfheNode::BfheNode(std::string _name, LweSample * _result, std::vector<BfheNode*> _inputs, op_enum _op, tree_enum _tree_type):
-    name(_name),result(_result), inputs(_inputs), op(_op), tree_type(_tree_type) {
+    name(_name),result(_result), inputs(_inputs), op(_op), tree_type(_tree_type){
+   omp_init_lock(&isComputingLock);
    if(inputs.size()!=0){
         std::cout<<"The followings have being set as inputs of "<<name<<": ";
         for(auto it=inputs.begin(); it!=inputs.end(); ++it){
@@ -72,14 +89,19 @@ BfheNode::BfheNode(std::string _name, LweSample * _result, std::vector<BfheNode*
     }
 
 BfheNode::BfheNode(std::string _name, op_enum _op): 
-    name(_name),result(), inputs(), op(_op), tree_type(GATE) { }
+    name(_name),result(), inputs(), op(_op), tree_type(GATE){
+   omp_init_lock(&isComputingLock);
+    }
 
 BfheNode::BfheNode(std::string _name, LweSample * _result):
-    name(_name),result(_result), inputs(), op(NOP),tree_type(INPUT) {}
+    name(_name),result(_result), inputs(), op(NOP),tree_type(INPUT){
+    omp_init_lock(&isComputingLock);
+    }
 
 BfheNode::BfheNode(std::string _name, BfheNode * node1, op_enum _op, tree_enum _tree_type ):
-    name(_name),result(), inputs({node1}), op(_op), tree_type(_tree_type) {
+    name(_name),result(), inputs({node1}), op(_op), tree_type(_tree_type){
         assert(tree_type!=GATE);
+	omp_init_lock(&isComputingLock);
 
    if(inputs.size()!=0){
         std::cout<<"The followings have being set as inputs of "<<name<<": ";
@@ -93,7 +115,8 @@ BfheNode::BfheNode(std::string _name, BfheNode * node1, op_enum _op, tree_enum _
 
 
 BfheNode::BfheNode(std::string _name, BfheNode * node1, BfheNode * node2, op_enum _op):
-    name(_name),result(nullptr), inputs({node1,node2}), op(_op), tree_type(GATE) {
+    name(_name),result(nullptr), inputs({node1,node2}), op(_op), tree_type(GATE){
+	    omp_init_lock(&isComputingLock);
    
    if(inputs.size()!=0){
         std::cout<<"The followings have being set as inputs of "<<name<<": ";
@@ -105,25 +128,32 @@ BfheNode::BfheNode(std::string _name, BfheNode * node1, BfheNode * node2, op_enu
 }
 
 
-//Tasktipe.precede(anotherTask)
-
-tf::Task BfheNode::buildGraph(tf::Taskflow & tf, const TFheGateBootstrappingCloudKeySet* bk, BfheNet * net){
-    tf::Task thisTask = tf.emplace([this,bk,net]{ this->eval(bk, net); }); //create the task in some way
-    for( auto input : inputs){
-        input->buildGraph(tf,bk, net).precede(thisTask) ;
+LweSample *
+BfheNode::graphEval(const TFheGateBootstrappingCloudKeySet* bk, BfheNet * net){
+    //std::cout << "Start Evaluation of "<<name<<std::endl;
+    omp_set_lock(&isComputingLock);
+    if(tree_type == INPUT){
+        assert(result!=nullptr);
     }
-    return thisTask;
+    if(result == nullptr){
+        //std::cout << "calling Evaluation of "<<name<<std::endl;;
+        result = computeResult(op,inputs,bk,net);
+    }
+    omp_unset_lock(&isComputingLock);
+    //std::cout << "End Evaluation of "<<name<<std::endl;;
+    net->notifyPerformed(this);
+    return result;
 }
 
 LweSample *
 BfheNode::eval(const TFheGateBootstrappingCloudKeySet* bk, BfheNet * net){
-    //std::cout << "Start Evaluation of "<<name<<std::endl;;
+    //std::cout << "Start Evaluation of "<<name<<std::endl;
     if(tree_type == INPUT){
         assert(result!=nullptr);
         return result;
     }
     if(result == nullptr){
-        //std::cout << "calling Evaluation of "<<name<<std::endl;;
+        //std::cout << "calling Evaluation of "<<name<<std::endl;
         result = computeResult(op,inputs,bk,net);
     }
     //std::cout << "End Evaluation of "<<name<<std::endl;;

@@ -11,7 +11,6 @@
 #include <map>
 #include <string>
 #include <memory>
-#include <mutex>
 
 
 class UniquePtrNodeComparator: public std::binary_function<std::unique_ptr<BfheNode>, std::unique_ptr<BfheNode>, bool>
@@ -52,8 +51,6 @@ struct BfheNet {
     std::vector<BfheNode *> inputs;
     std::vector<BfheNode *> outputs;
     TFheGateBootstrappingCloudKeySet* cloudKey; 
-
-    std::mutex nChildrenMutex;
 
     BfheNet(std::string);
     ~BfheNet(){
@@ -118,6 +115,8 @@ int BfheNet_hasCloudKeySet(BfheNet * net);
 bfhe_code BfheNet_setCloudKey(BfheNet * net, TFheGateBootstrappingCloudKeySet* cloudKey );
 
 int BfheNet_size(BfheNet * net);
+int BfheNet_inputSize(BfheNet * net);
+int BfheNet_outputSize(BfheNet * net);
 
 #ifdef  __cplusplus
 } //end extern C

@@ -55,7 +55,7 @@ ARCHFLAGS := $(ARCHFLAGS)
 #OPTFLAGS  ?= -g -O0
 OPTFLAGS  ?= -O2
 
-CFLAGS    += -Wall -Wno-unused-function -Wno-write-strings -Wno-sign-compare $(ARCHFLAGS)
+CFLAGS    += -fopenmp -Wall -Wno-unused-function -Wno-write-strings -Wno-sign-compare $(ARCHFLAGS)
 ifneq ($(findstring arm,$(shell uname -m)),)
 	CFLAGS += -DABC_MEMALIGN=4
 endif
@@ -77,7 +77,7 @@ endif
 ABC_READLINE_INCLUDES ?=
 ABC_READLINE_LIBRARIES ?= -lreadline
 
-LDFLAGS= -lpthread
+LDFLAGS= -fopenmp
 
 # whether to use libreadline
 ifndef ABC_USE_NO_READLINE

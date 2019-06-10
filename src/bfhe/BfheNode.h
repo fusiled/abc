@@ -11,8 +11,7 @@
 #include <vector>
 #include <ostream>
 
-
-#include <taskflow/taskflow.hpp>
+#include <omp.h>
 
 class BfheNet;
 struct LweSample;
@@ -51,6 +50,7 @@ struct BfheNode{
     std::vector<BfheNode *> inputs;
     op_enum op;
     tree_enum tree_type;
+    omp_lock_t isComputingLock;
 
     BfheNode(std::string, LweSample *, std::vector<BfheNode*>, op_enum, tree_enum _tree_type); //Generic constructor
     BfheNode(std::string, LweSample *); //Input constructor
@@ -59,8 +59,8 @@ struct BfheNode{
     BfheNode(std::string, BfheNode *, BfheNode *, op_enum); //Binary input constructor
     ~BfheNode();
     void clean();
+    LweSample* graphEval(const TFheGateBootstrappingCloudKeySet*,BfheNet *);
     LweSample* eval(const TFheGateBootstrappingCloudKeySet*,BfheNet *);
-    tf::Task buildGraph(tf::Taskflow &, const TFheGateBootstrappingCloudKeySet*, BfheNet *);
 };
     
     std::ostream& operator<<(std::ostream &strm, const BfheNode &a);

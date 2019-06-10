@@ -11,9 +11,6 @@
 #include <string>
 #include <utility>
 #include <iostream>
-#include <mutex>
-
-#include <taskflow/taskflow.hpp>
 
 BfheNet::BfheNet(std::string _name):
     name(_name), cloudKey(nullptr){
@@ -130,28 +127,18 @@ bfhe_code BfheNet::graphEval(){
 
     std::cout<<"Evaluating net in parallel"<<std::endl;
 
-    tf::Taskflow tf;
-
-    std::cout << "Building Dependency Graph... "<<std::endl;
+    nChildrenRuntime = std::map<std::string,unsigned int>(nChildren);
     std::chrono::high_resolution_clock::time_point t_start = std::chrono::high_resolution_clock::now();
-    //Build TaskFlow Graph. This step could be done while we're building the tree. It should be better
-    for(auto outputIter = outputs.begin(); outputIter != outputs.end(); ++outputIter ){
-        //TODO!!! FIX HERE
-        (*outputIter)->buildGraph(tf,cloudKey,this);
+    #pragma omp parallel for
+    for(int i=0; i<outputs.size(); i++ ){
+    //for(auto outputIter = outputs.begin(); outputIter != outputs.end(); ++outputIter ){
+	//(*outputIter)->graphEval(cloudKey,this);
+        outputs[i]->graphEval(cloudKey,this);
     }
     std::chrono::high_resolution_clock::time_point t_end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>( t_end - t_start ).count();
-    std::cout << "Dependency Graph  built in "<< name <<": "<<duration/1000.0<<" secs"<< std::endl;
-    nChildrenRuntime = std::map<std::string,unsigned int>(nChildren);
-    t_start = std::chrono::high_resolution_clock::now();
-    
-    std::cout << "Number of availabel threads is" << std::thread::hardware_concurrency() << std::endl;
-    std::cout << "Limiting to 2" << std::endl;
-    tf::Executor(2).run(tf);
-
-    t_end = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>( t_end - t_start ).count();
-    std::cout << "graph computed in "<< name <<": "<<duration/1000.0<<" secs"<< std::endl;
+    std::cout << "Graph computed in "<< name <<": "<<duration/1000.0<<" secs"<< std::endl;
+    std::cout << "Processed "<< nodeMap.size()/(duration/1000.0) << " nodes/second "<< std::endl;
     return OK;
 }
 
@@ -218,12 +205,13 @@ void BfheNet::notifyPerformed(BfheNode * node){
 	//if nChildrenRuntime of a child is zero, then we can free it
 	//This reduces the memory demand of the system
 	for( auto child: node->inputs){
-		nChildrenMutex.lock();
+		#pragma omp critical
+		{
 		nChildrenRuntime[child->name]--;
 		if(nChildrenRuntime[child->name]==0){
 			child->clean();
 		}
-		nChildrenMutex.unlock();
+		} //end critical
 	}
 }
 
@@ -297,6 +285,14 @@ bfhe_code BfheNet_storeOutput(BfheNet * net, FILE * fp){
 
 int BfheNet_size(BfheNet * net){
     return net->size();
+}
+
+int BfheNet_inputSize(BfheNet * net){
+    return net->inputs.size();
+}
+
+int BfheNet_outputSize(BfheNet * net){
+    return net->outputs.size();
 }
 
 int BfheNet_hasCloudKeySet(BfheNet * net){

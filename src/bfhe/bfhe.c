@@ -120,7 +120,8 @@ int BfheCommandCreateNet( Abc_Frame_t * pAbc, int argc, char **argv )
         return 2;
     }
     Bfhe_CreateNet( pAbc->pNtkCur, THE_NET, 0,0,0 );
-    fprintf(pAbc->Out, "Created BfheNet of size: %d\n", BfheNet_size(THE_NET) );
+    fprintf(pAbc->Out, "Created BfheNet of size: %d with %d inputs and %d outputs\n", 
+		    BfheNet_size(THE_NET), BfheNet_inputSize(THE_NET), BfheNet_outputSize(THE_NET) );
     return 0;
 
 usage:
