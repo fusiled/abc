@@ -53,7 +53,7 @@ endif
 ARCHFLAGS := $(ARCHFLAGS)
 
 #OPTFLAGS  ?= -g -O0
-OPTFLAGS  ?= -O2
+OPTFLAGS  ?= -O3
 
 CFLAGS    += -fopenmp -Wall -Wno-unused-function -Wno-write-strings -Wno-sign-compare $(ARCHFLAGS)
 ifneq ($(findstring arm,$(shell uname -m)),)

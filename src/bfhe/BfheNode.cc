@@ -27,7 +27,6 @@ void (*op_bin_function_map[])(LweSample *, const LweSample *, const LweSample *,
     bootsXNOR
 };
 
-
 LweSample * computeResult(op_enum op, std::vector<BfheNode*> inputs, const TFheGateBootstrappingCloudKeySet* bk, BfheNet * net){
     //assert(op!=NOP);
     LweSample * result = new_gate_bootstrapping_ciphertext(bk->params);
@@ -51,6 +50,28 @@ LweSample * computeResult(op_enum op, std::vector<BfheNode*> inputs, const TFheG
         case NOP: {
             result = inputs[0]->eval(bk,net);
         }
+	    break;
+	case MUX: {
+	    //Handle multiplexer case
+	    assert(inputs.size()==3);
+	    LweSample * select = NULL, *optionOne = NULL, *optionTwo=NULL;
+	    #pragma omp parallel sections
+	    {
+		#pragma omp section
+		{
+ 	    	  select  = inputs[0]->eval(bk,net);
+		}
+		#pragma omp section
+		{
+	    	  optionOne = inputs[1]->eval(bk,net);
+		}
+		#pragma omp section
+		{
+	    	  optionTwo = inputs[2]->eval(bk,net);
+		}
+	    }
+	    bootsMUX(result,select, optionOne, optionTwo, bk);
+	}
             break;
         default: 
             //Hanldle binary operations now
@@ -141,7 +162,7 @@ BfheNode::graphEval(const TFheGateBootstrappingCloudKeySet* bk, BfheNet * net){
     }
     omp_unset_lock(&isComputingLock);
     //std::cout << "End Evaluation of "<<name<<std::endl;;
-    net->notifyPerformed(this);
+    //net->notifyPerformed(this);
     return result;
 }
 

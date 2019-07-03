@@ -242,6 +242,7 @@ std::map<std::string,op_enum> str_op_map = {
     {"ORYN",  ORYN},  
     {"XOR",   XOR},  
     {"XNOR",  XNOR},  
+    {"MUX",   MUX},  
     {"NOT",   NOT},  
     {"NOP",   NOP},  
     {"ZERO",  ZERO},

@@ -28,10 +28,11 @@ enum op_enum {
     ORYN   = 7,      //a | !b       bootsORYN
     XOR    = 8,      // a ^ b       bootsXOR
     XNOR   = 9,      // !(a ^ b)    bootsXNOR
-    NOT    = 10,     // !a          bootNOT
-    NOP    = 11,     // a           nothing to do, constant node
-    ZERO   = 12,     // return 0
-    ONE    = 13,     // return 1
+    MUX    = 10,     // a?b:c       bootsMUX
+    NOT    = 11,     // !a          bootsNOT
+    NOP    = 12,     // a           nothing to do, constant node
+    ZERO   = 13,     // return 0
+    ONE    = 14,     // return 1
     N_OP_ENUM,
 };
 
